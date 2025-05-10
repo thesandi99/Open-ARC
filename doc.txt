@@ -1,0 +1,22 @@
+Overview
+
+In this competition, you’ll develop AI systems to efficiently learn new skills and solve open-ended problems, rather than depend exclusively on systems trained with extensive datasets. The top submissions will show improvement toward human level reasoning.
+
+Description
+
+Note: This is the second ARC Prize competition on Kaggle. It builds upon the ARC Prize 2024. This second competition has an updated dataset of human-calibrated problems and increased compute for participants.
+
+Current AI systems can not generalize to new problems outside their training data, despite extensive training on large datasets. LLMs have brought AI to the mainstream for a large selection of known tasks. However, progress towards Artificial General Intelligence (AGI) is idea constrained. Improvements in AGI could enable AI systems that think and invent alongside humans.
+
+The Abstraction and Reasoning Corpus for Artificial General Intelligence (ARC-AGI-2) benchmark measures an AI system's ability to efficiently learn new skills. Humans have collectively scored 100% in ARC, whereas the best AI systems only score 4%. The ARC Prize competition encourages researchers to explore ideas beyond LLMs, which depend heavily on large datasets and struggle with novel problems.
+
+This competition includes several components. The competition as described here carries a prize of $125,000 with an additional $600,000 available if any team can beat a score of 85% on the leaderboard. Further opportunities outside of Kaggle may also be available- to learn more visit ARCprize.org.
+
+Your work could contribute to new AI problem-solving applicable across industries. Vastly improved AGI will likely reshape human-machine interactions. Winning solutions will be open-sourced to promote transparency and collaboration in the field of AGI.
+
+# example of 1 of quation in arc simplest
+
+{"1d_denoising_1c_0":{"train":[{"input":[[0,0,4,0,0,0,0,0,4,4,4,4,4,4,4,4,4,4,0,0,0,0,4,0,0,0,0,0,0,0,0,0]],"output":[[0,0,0,0,0,0,0,0,4,4,4,4,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0]]},{"input":[[0,0,0,2,0,0,2,0,0,2,0,0,2,0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0]],"output":[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0]]},{"input":[[4,4,4,4,4,4,4,4,4,4,4,4,4,4,0,0,0,4,0,0,0,0,4,0,0,0,0,0,0,0,0,0]],"output":[[4,4,4,4,4,4,4,4,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]]}],"test":[{"input":[[3,3,3,3,3,3,3,3,3,3,3,3,0,0,3,0,0,3,0,0,0,3,0,0,0,0,0,0,0,0,0,0]]}]}}
+
+1d_denoising_1c_0 solution:
+{"1d_denoising_1c_0":[[3,3,3,3,3,3,3,3,3,3,3,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]]}
