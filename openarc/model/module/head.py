@@ -139,7 +139,7 @@ class TEHead(nn.Module):
         super().__init__()
         self.dim = dim # Input per-token dim from sequence (e.g., hidden_size of Transformer)
         self.num_layer = num_layer
-
+        mlp_config.intermediate_size = 256
         if not hasattr(mlp_config, 'intermediate_size'):
             raise AttributeError("mlp_config must have 'intermediate_size' for TEHead.")
         # This intermediate_size is for the EHeads, but also used by MultiScaleConvAggregator target.

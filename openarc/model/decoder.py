@@ -5,9 +5,10 @@ from openarc.model.module.module import RMSNorm
 from openarc.model.module.expert import TExpert
 from openarc.model.module.head import TEHead
 from openarc.config.config import config as C
-
+from openarc.config.config import Config 
 from openarc.model.attn.attn import ARCAttention
 
+from typing import Dict, Any
 #  TODO: 
 ATTENTION_CLASSES = {
     "normal": ARCAttention,
@@ -106,15 +107,14 @@ class OpenDecoder(nn.Module):
         self.final_layernorm = RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
         if config.active_summary_head:
-            mlp_cfg_tehead_dict = {
-                'intermediate_size': config.tehead_mlp_intermediate_size,
-                'mlp_activation': config.tehead_mlp_activation,
+            mlp_cfg_tehead_dict: Dict[str, Any] = {
+                'mlp_layers': 3,
+                'mlp_hidden_dim': 512,
+                'mlp_activation': 'silu',
             }
-            mlp_config_for_tehead = C(**mlp_cfg_tehead_dict)
-            
             self.summary_head = TEHead(
                 dim=config.hidden_size, # Takes final hidden_size
-                mlp_config=mlp_config_for_tehead,
+                mlp_config=mlp_cfg_tehead_dict,
                 num_layer=config.tehead_num_layers,
             )
         else:

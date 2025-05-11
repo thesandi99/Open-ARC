@@ -28,10 +28,8 @@ class JCell(nn.Module):
         self.linear_oh = nn.Linear(hidden_size, hidden_size, bias=True)
         self.linear_ox = nn.Linear(input_size, hidden_size, bias=False)
 
-        # Activation for cell state update (often tanh for LSTM candidate)
-        self.candidate_activation = getattr(F, config.jcell_candidate_activation, torch.tanh)
-        # Activation for hidden state (often tanh for LSTM output gate application)
-        self.hidden_activation = getattr(F, config.jcell_hidden_activation, torch.tanh)
+        self.candidate_activation = getattr(F, str(config.jcell_candidate_activation), torch.tanh)
+        self.hidden_activation = getattr(F, str(config.jcell_hidden_activation), torch.tanh)
 
 
     def forward(self, x_t: torch.Tensor, states: Tuple[torch.Tensor, torch.Tensor]):
