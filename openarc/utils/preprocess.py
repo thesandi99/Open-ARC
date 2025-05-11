@@ -1,6 +1,5 @@
 import torch
-from config import config
-from utils.mlpregressor import create_dim_pred 
+from openarc.config.config import config
 
 def create_arrays(task_json_data, true_lable_data, max_seq_len, task_id, C_config):
     # C_config is the config object passed in
