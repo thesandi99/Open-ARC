@@ -65,7 +65,7 @@ class JCell(nn.Module):
 
         return h_next, c_next
 
-class JModule(nn.Module):
+class _JModule(nn.Module):
     def __init__(self, config, num_layers): # Config should contain input_size, hidden_size, etc.
         super().__init__()
         self.config = config
@@ -142,3 +142,55 @@ class JModule(nn.Module):
         projected_output = self.output_fc(final_sequence_output)
 
         return projected_output, last_states_list
+    
+class JModule(nn.Module):
+    def __init__(self, config, num_layers): 
+        super().__init__()
+        self.config = config
+        self.input_size = config.jmodule_input_size
+        self.hidden_size = config.jmodule_hidden_size 
+        self.num_layers = num_layers 
+        jmodule_dropout = getattr(config, 'jmodule_dropout', 0.1) 
+
+        self.lstm = nn.LSTM(
+            input_size=self.input_size,
+            hidden_size=self.hidden_size,
+            num_layers=self.num_layers,
+            batch_first=True, 
+            dropout=jmodule_dropout if self.num_layers > 1 else 0, 
+            bidirectional=False 
+        )
+ 
+        self.output_projection_dim = getattr(config, 'jmodule_output_projection_dim', -1)
+        
+        if self.output_projection_dim > 0 and self.output_projection_dim != self.hidden_size:
+            self.output_fc = nn.Linear(self.hidden_size, self.output_projection_dim)
+        elif self.output_projection_dim > 0 and self.output_projection_dim == self.hidden_size:
+             self.output_fc = nn.Identity() # No projection needed if dim matches hidden_size
+        elif self.output_projection_dim == -1:
+             self.output_fc = nn.Identity() # Output LSTM hidden states directly
+        else: # Handles self.output_projection_dim = 0 or other invalid negative numbers
+             raise ValueError(f"Invalid jmodule_output_projection_dim: {self.output_projection_dim}")
+
+
+    def forward(self, x: torch.Tensor, initial_states: Optional[Tuple[torch.Tensor, torch.Tensor]] = None):
+        """
+        x: Input sequence. Shape: (batch_size, seq_len, input_size)
+        initial_states: Optional tuple (h_0, c_0).
+                        h_0 shape: (num_layers, batch_size, hidden_size)
+                        c_0 shape: (num_layers, batch_size, hidden_size)
+        Returns:
+            projected_output: Sequence of outputs after optional projection.
+                              Shape: (batch_size, seq_len, hidden_size or output_projection_dim)
+            last_states: Tuple (h_n, c_n) from the LSTM layer.
+                         h_n shape: (num_layers, batch_size, hidden_size)
+                         c_n shape: (num_layers, batch_size, hidden_size)
+        """
+        batch_size, seq_len, _ = x.shape
+
+
+        lstm_output, last_states = self.lstm(x, initial_states)
+
+        projected_output = self.output_fc(lstm_output)
+
+        return projected_output, last_states

@@ -1,4 +1,3 @@
-
 # [BOS, TRAIN_CTX, EX_START, IN_GRID, 1,1,1,1, OUT_GRID, 0,0,1,1, EX_END,  (next ex...)  TEST_CTX, EX_START, IN_GRID, 3,3,3,3, OUT_GRID, EOS]
 # 16, 13, 10, 11, 1,1,1,1, 12, 0,0,1,1, 10, 14, 10, 11, 3,3,3,3, 12, 17
 
@@ -32,8 +31,8 @@ class Config:
 
         # Model Architecture
         # OpenEmbedder
-        self.hidden_size: int = 512
-        self.max_position_embeddings: int = 4096 * 8 # 32768
+        self.hidden_size: int = 128
+        self.max_position_embeddings: int = 4096 # * 8 # 32768
         
         # OpenDecoder
         self.rms_norm_eps: float = 1e-6
@@ -50,7 +49,7 @@ class Config:
         self.attention_dropout: float = 0.1
 
         # Attention Core
-        self.num_attention_heads: int = 8
+        self.num_attention_heads: int = 2
         
         self.qk_nope_head_dim: int = 32
         self.qk_rope_head_dim: int = 32
@@ -72,8 +71,8 @@ class Config:
 
         # JModule 
         self.jmodule_recurrent_layers: int = 3 # jcell  layer 3 recommended
-        self.jmodule_input_size: int  = 512
-        self.jmodule_hidden_size: int = 512
+        self.jmodule_input_size: int  = self.hidden_size
+        self.jmodule_hidden_size: int = self.hidden_size
         self.candidate_activation = F.relu
         self.hidden_activation = F.tanh
         self.jcell_candidate_activation = F.tanh
@@ -83,19 +82,27 @@ class Config:
         
         # Task Experts
         self.num_experts: int = 12
-        self.expert_refinement_steps: int = 2
+        self.expert_refinement_steps: int = 1
         self.mlp_intermediate_size = self.hidden_size * 4
         self.mlp_activation: str = 'silu'
 
         self.moe_feature_extractor_kernel_sizes = [1, 3, 5]
         self.moe_feature_extractor_per_branch_channels = self.hidden_size // len(self.moe_feature_extractor_kernel_sizes)
         self.use_moe_feature_extractor = True
-        self.n_routed_experts: int = 10
+        self.n_routed_experts: int = 1
         self.num_experts_per_tok: int = 1
         
         # lm_head
 
         self.output_size: int = self.vocab_size
+        
+        # Training
+        self.batch_size: int = 1
+        self.num_epochs: int = 10
+        self.learning_rate: float = 5e-5
+        self.weight_decay: float = 0.01
+        self.gradient_clip_val: float = 1.0
+        self.use_amp: bool = True
         
         # No Need To Change !
         for key, value in kwargs.items():
@@ -135,5 +142,4 @@ class Config:
             self.num_experts_per_tok = self.n_routed_experts
 
 
-from .config import config
-config = config
+config = Config()
