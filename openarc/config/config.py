@@ -135,5 +135,5 @@ class Config:
             self.num_experts_per_tok = self.n_routed_experts
 
 
-from .config import config
+from openarc.config.nanomodel import config
 config = config

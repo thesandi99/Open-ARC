@@ -232,7 +232,7 @@ def infer_one_sample(
             initial_jmodule_states=current_jmodule_states,
             use_cache=True, # Enable KV caching for generation
             output_attentions=False,
-            position_ids=pass_position_ids # Crucial for RoPE with KV caching
+          #  position_ids=pass_position_ids # Crucial for RoPE with KV caching
         )
         
         # OpenARC output: (logits, next_past_key_values_attn, last_jmodule_states_list)
