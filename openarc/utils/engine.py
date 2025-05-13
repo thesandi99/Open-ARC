@@ -99,9 +99,7 @@ def train_one_epoch(
                 # logits shape: (bsz, current_seq_len, vocab_size)
                 # labels shape: (bsz, current_seq_len)
                 loss = loss_fct(logits.reshape(-1, logits.size(-1)), labels.reshape(-1))
-                # arc loss 
-                loss = OpenARCLoss(logits, labels, config.pad, config.eos, config.v_head_dim)
-                
+        
             scaler.scale(loss).backward()
             if gradient_clip_val:
                 scaler.unscale_(optimizer) # Unscale before clipping
