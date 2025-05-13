@@ -65,12 +65,13 @@ class JCell(nn.Module):
 
         return h_next, c_next
 
-class _JModule(nn.Module):
+class JModule(nn.Module):
     def __init__(self, config, num_layers): # Config should contain input_size, hidden_size, etc.
         super().__init__()
         self.config = config
         self.input_size = config.jmodule_input_size
         self.hidden_size = config.jmodule_hidden_size # Dimension of h and c states
+        
         # Potentially multiple layers of JCell stacked
         self.num_layers = num_layers
         
@@ -113,37 +114,37 @@ class _JModule(nn.Module):
         elif len(initial_states) != self.num_layers:
             raise ValueError(f"Expected {self.num_layers} initial states, got {len(initial_states)}")
 
-        current_layer_input = x # Input to the first layer
+        current_layer_input = x  # Input to the first layer
         last_states_list = []
 
         for layer_idx in range(self.num_layers):
             cell = self.cells[layer_idx]
             h_prev, c_prev = initial_states[layer_idx]
-            
-            outputs_this_layer_sequence = []
-            
-            for t in range(seq_len):
-                x_t = current_layer_input[:, t, :] # Input for current timestep: (batch_size, layer_input_size)
-                h_next, c_next = cell(x_t, (h_prev, c_prev))
-                outputs_this_layer_sequence.append(h_next.unsqueeze(1)) # Store h_next for this timestep
-                h_prev, c_prev = h_next, c_next # Update states for next timestep
 
-            # Concatenate outputs from all timesteps for this layer
-            current_layer_input = torch.cat(outputs_this_layer_sequence, dim=1) # (batch, seq_len, hidden_size)
-            last_states_list.append((h_prev, c_prev)) # Store final states of this layer
+            # Reshape input for JCell to process the entire sequence at once
+            x_reshaped = current_layer_input.reshape(batch_size * seq_len, -1)  
 
-            if self.dropout is not None and layer_idx < self.num_layers - 1: # Apply dropout between layers
+            # Apply JCell to the reshaped input
+            h_next, c_next = cell(x_reshaped, (h_prev.repeat_interleave(seq_len, 0), 
+                                              c_prev.repeat_interleave(seq_len, 0)))  
+
+            # Reshape the output back to the original sequence format
+            current_layer_input = h_next.reshape(batch_size, seq_len, -1)  
+            
+            last_states_list.append((h_next[-batch_size:], c_next[-batch_size:]))  # Store final states of this layer
+
+            if self.dropout is not None and layer_idx < self.num_layers - 1:  # Apply dropout between layers
                 current_layer_input = self.dropout(current_layer_input)
-        
+
         # The output of the JModule is the sequence of hidden states from the last layer
         final_sequence_output = current_layer_input
-        
+
         # Apply final output projection
         projected_output = self.output_fc(final_sequence_output)
 
         return projected_output, last_states_list
     
-class JModule(nn.Module):
+class _JModule(nn.Module):
     def __init__(self, config, num_layers): 
         super().__init__()
         self.config = config

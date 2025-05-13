@@ -135,24 +135,19 @@ class EHead(nn.Module):
         return output
     
 class TEHead(nn.Module):
-    def __init__(self, dim: int, mlp_config=C, dropout_rate: float = 0.1, num_layer: int = 2, ehead_dropout_rate: float = 0.1): # Changed rc_head_dropout_rate
+    def __init__(self, dim: int, mlp_config, dropout_rate: float = 0.1, num_layer: int = 2, ehead_dropout_rate: float = 0.1): # Changed rc_head_dropout_rate
         super().__init__()
         self.dim = dim # Input per-token dim from sequence (e.g., hidden_size of Transformer)
         self.num_layer = num_layer
-        mlp_config.intermediate_size = 256
-        if not hasattr(mlp_config, 'intermediate_size'):
-            raise AttributeError("mlp_config must have 'intermediate_size' for TEHead.")
-        # This intermediate_size is for the EHeads, but also used by MultiScaleConvAggregator target.
-        # It might be clearer if MultiScaleConvAggregator had its own target_output_channels distinct from EHead's internal dim.
-        
-        self.internal_feature_dim_after_aggregator = mlp_config.intermediate_size # Let's assume this is the target for the aggregator
+
+        self.internal_feature_dim_after_aggregator = C.intermediate_size # Let's assume this is the target for the aggregator
 
         self.bc_lm_aggregator = MultiScaleConvAggregator( # Renamed for clarity
             in_channels=self.dim, # Takes hidden_size from sequence
             target_output_channels=self.internal_feature_dim_after_aggregator,
             # branch_channels_ratio=0.25, # Can be part of mlp_config or hardcoded
             # min_branch_channels=max(16, self.internal_feature_dim_after_aggregator // 8),
-            # kernel_sizes=[1, 3, 5]
+            kernel_sizes=C.moe_feature_extractor_kernel_sizes
         )
         
         self.multi_e_head = nn.ModuleList() # Renamed for clarity
@@ -162,7 +157,7 @@ class TEHead(nn.Module):
             self.multi_e_head.append(
                 EHead(
                     dim=self.internal_feature_dim_after_aggregator,
-                    mlp_intermediate_size=mlp_config.intermediate_size, # Or a different value for EHead's own MLP
+                    mlp_intermediate_size=C.intermediate_size, # Or a different value for EHead's own MLP
                     mlp_activation_str=getattr(mlp_config, 'mlp_activation', 'silu'),
                     dropout_rate=ehead_dropout_rate
                 )

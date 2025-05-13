@@ -3,6 +3,8 @@ import torch.nn as nn
 from tqdm import tqdm
 from typing import Optional, Dict, Any, List, Tuple # For type hinting
 
+from openarc.model.loss import OpenARCLoss
+
 # Helper function to create the combined mask for decoder-style attention
 def create_combined_attention_mask(
     padding_mask_bool: torch.Tensor, # (bsz, seq_len), True where padded
@@ -97,7 +99,9 @@ def train_one_epoch(
                 # logits shape: (bsz, current_seq_len, vocab_size)
                 # labels shape: (bsz, current_seq_len)
                 loss = loss_fct(logits.reshape(-1, logits.size(-1)), labels.reshape(-1))
-            
+                # arc loss 
+                loss = OpenARCLoss(logits, labels, config.pad, config.eos, config.v_head_dim)
+                
             scaler.scale(loss).backward()
             if gradient_clip_val:
                 scaler.unscale_(optimizer) # Unscale before clipping
@@ -175,99 +179,6 @@ def eval_one_epoch(
     avg_epoch_loss = total_loss / len(val_loader)
     print(f"Epoch {epoch} - Average Validation Loss: {avg_epoch_loss:.4f}")
     return avg_epoch_loss
-
-
-@torch.no_grad()
-def infer_one_sample(
-    model: nn.Module,
-    prompt_ids: torch.Tensor, # Shape: (1, prompt_len)
-    device: torch.device,
-    config, # Model/global config for EOS, max_length
-    max_new_tokens: int = 50,
-    temperature: float = 1.0,
-    top_k: Optional[int] = None
-) -> List[int]:
-    """
-    Generates a sequence of token IDs given a prompt.
-    """
-    model.eval()
-    
-    generated_ids_list = prompt_ids.tolist()[0] # Start with prompt tokens
-    current_tokens_for_model = prompt_ids.to(device) # (1, current_len)
-    
-    past_key_values_attn = None 
-    # JModule in OpenARC initializes states to zeros if initial_states is None
-    current_jmodule_states: Optional[List[Tuple[torch.Tensor, torch.Tensor]]] = None 
-
-    model_dtype = next(model.parameters()).dtype
-
-    for _ in range(max_new_tokens):
-        effective_input_ids = current_tokens_for_model
-        current_attention_mask: Optional[torch.Tensor] = None
-        pass_position_ids: Optional[torch.Tensor] = None
-
-        current_seq_len = effective_input_ids.shape[1]
-
-        if past_key_values_attn is not None: # Generating subsequent tokens (after prompt)
-            effective_input_ids = current_tokens_for_model[:, -1:] # Only the last token (1, 1)
-            # For RoPE, position_ids should be the absolute position of the new token.
-            # seq_len for RoPE will be max_pos. position_ids selects the correct embedding.
-            pass_position_ids = torch.tensor([[current_seq_len - 1]], device=device, dtype=torch.long)
-            # Attention mask for q_len=1: Can often be None if KV cache has no padding.
-            # If ARCAttention needs a specific mask for q_len=1, construct it:
-            # e.g., torch.zeros(1, 1, 1, current_seq_len, device=device, dtype=model_dtype)
-            # For simplicity, assuming None works if KV cache is dense.
-            current_attention_mask = None # Let ARCAttention handle None for q_len=1 with cache
-        else: # Processing the initial prompt
-            # Create full causal+padding mask for the prompt. Assume prompt has no internal padding.
-            prompt_padding_bool = torch.zeros_like(current_tokens_for_model, dtype=torch.bool, device=device)
-            current_attention_mask = create_combined_attention_mask(
-                prompt_padding_bool, current_seq_len, device, dtype=model_dtype
-            )
-
-        model_outputs = model(
-            input_ids=effective_input_ids,
-            attention_mask=current_attention_mask,
-            past_key_values_attn=past_key_values_attn,
-            initial_jmodule_states=current_jmodule_states,
-            use_cache=True, # Enable KV caching for generation
-            output_attentions=False,
-          #  position_ids=pass_position_ids # Crucial for RoPE with KV caching
-        )
-        
-        # OpenARC output: (logits, next_past_key_values_attn, last_jmodule_states_list)
-        logits = model_outputs[0] # (1, 1, vocab_size) if input was (1,1), else (1, prompt_len, vocab_size)
-        next_token_logits = logits[:, -1, :]  # Get logits for the very last token position
-
-        past_key_values_attn = model_outputs[1] # Update KV cache
-        current_jmodule_states = model_outputs[2] # Update JModule states
-
-        # Apply temperature scaling
-        if temperature != 1.0 and temperature > 0: # temp=0 would be problematic
-            next_token_logits = next_token_logits / temperature
-
-        # Apply top-k filtering
-        if top_k is not None and top_k > 0:
-            v, _ = torch.topk(next_token_logits, min(top_k, next_token_logits.size(-1)))
-            next_token_logits[next_token_logits < v[:, [-1]]] = -float('Inf')
-
-        probs = torch.nn.functional.softmax(next_token_logits, dim=-1)
-        next_token_id = torch.multinomial(probs, num_samples=1) # Shape: (1, 1)
-
-        if next_token_id.item() == config.eos:
-            generated_ids_list.append(config.eos)
-            break
-        
-        generated_ids_list.append(next_token_id.item())
-        # Append the new token ID for the next iteration's input (if not using KV cache effectively)
-        # or for `past_key_values_attn` to grow correctly.
-        current_tokens_for_model = torch.cat((current_tokens_for_model, next_token_id), dim=1)
-
-        if len(generated_ids_list) >= config.max_position_embeddings: # Safety break
-            print("Warning: Max position embeddings reached during generation.")
-            break
-                
-    return generated_ids_list
 
 
 def save_model_checkpoint(

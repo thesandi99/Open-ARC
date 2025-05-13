@@ -44,7 +44,7 @@ class Config:
         self.tehead_mlp_intermediate_size: int = self.hidden_size // 2
         self.tehead_mlp_activation: str = "gelu"
 
-        self.active_summary_head: bool = False
+        self.active_summary_head: bool = True
         self.hidden_dropout_prob: float = 0.1
         self.attention_dropout: float = 0.1
 
