@@ -50,9 +50,7 @@ class OpenTokenizer:
         self.config = config_instance
         self.model_name = ["OpenARC-FlatGrid"] 
 
-    @staticmethod
     def check_name(self): return self.model_name
-
 
     @classmethod
     def from_pretrained(cls, config_instance: Config = None):
@@ -64,7 +62,7 @@ class OpenTokenizer:
     def vocab_size_prop(self):
         return self.config.vocab_size 
 
-    @staticmethod
+          
     def tokenize_task(self, task_json_data, true_label_data, task_id, max_seq_len):
         C_config = self.config
         
