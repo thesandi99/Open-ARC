@@ -1,10 +1,7 @@
-# We have this dataset from train and val split
+# openarc/model/module/embed.py
 
-# Example Dataset
-# {'task_id': '5e6bbc0b', 'prompt_tensor': tensor([[16, 13, 10,  ..., 15, 15, 15]]), 'prompt_pad_mask_tensor': tensor([[False, False, False,  ...,  True,  True,  True]]), 
-# 'target_seq': tensor([15, 15, 15,  ..., 15, 15, 15]), 'is_trunc': False,}
-
-# Creating the embedder handel and perfectly embdding this kind of data set to model 
+# Copyright (c) Sangram.
+# Licensed under the MIT license.
 
 import torch
 import torch.nn as nn
@@ -21,13 +18,11 @@ from openarc.config.config import config as C
 # We using decoderonly Transformer model That why we use positional signal (sinusoidal positional encoding)
 
 class OpenEmbedder(nn.Module):
-    def __init__(self, config=C, embedding_dropout: float = 0.1): 
+    def __init__(self, config=C, embedding_dropout: float = 0.1):
         """
-        Embedder module that combines token embeddings with sinusoidal positional encodings.
-
+        Embedder module that combines token embeddings with sinusoidal positional encodings
         Args:
-            config (Config): Configuration object containing vocab_size, hidden_size,
-                             pad_token_id, and max_position_embeddings.
+            config (Config): Configuration object containing vocab_size, hidden_size
             embedding_dropout (float): Dropout rate for the embeddings.
         """
         super().__init__()
@@ -43,12 +38,9 @@ class OpenEmbedder(nn.Module):
             padding_idx=self.pad_token_id
         )
 
-        # Sinusoidal Positional Encoding
+        # Sinusoidal Positional Encoding 
         pe = torch.zeros(self.max_seq_len_for_pe, self.hidden_size)
         position = torch.arange(0, self.max_seq_len_for_pe, dtype=torch.float).unsqueeze(1)
-        
-        # div_term for sin uses arange(0, hidden_size, 2) -> ceil(hidden_size/2) elements
-        # div_term for cos also uses arange(0, hidden_size, 2) -> ceil(hidden_size/2) elements
         div_term = torch.exp(torch.arange(0, self.hidden_size, 2).float() * (-math.log(10000.0) / self.hidden_size))
 
         pe[:, 0::2] = torch.sin(position * div_term)
@@ -56,15 +48,15 @@ class OpenEmbedder(nn.Module):
         if self.hidden_size % 2 == 0:
             pe[:, 1::2] = torch.cos(position * div_term)
         else:
-            # If hidden_size is odd, the last dimension of div_term is not used by cos.
-            # Cosine part will have hidden_size // 2 dimensions.
             pe[:, 1::2] = torch.cos(position * div_term[:, :self.hidden_size//2])
 
         self.register_buffer('pe', pe.unsqueeze(0)) # Shape: (1, max_seq_len, hidden_size)
 
+        self.layer_norm = nn.LayerNorm(self.hidden_size)
+
         self.dropout = nn.Dropout(embedding_dropout)
 
-    def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
+    def forward(self, token_ids: torch.Tensor, token_type_ids: torch.Tensor = None) -> torch.Tensor:
         """
         Forward pass for the embedder.
 
@@ -75,6 +67,7 @@ class OpenEmbedder(nn.Module):
             torch.Tensor: Output embeddings. Shape: (batch_size, sequence_length, hidden_size).
         """
         B, S = token_ids.shape
+
         if S > self.pe.shape[1]:
             raise ValueError(
                 f"Sequence length {S} exceeds max_seq_len_for_pe {self.pe.shape[1]}. "
@@ -90,13 +83,16 @@ class OpenEmbedder(nn.Module):
                 f"Please check your input data and config.vocab_size (currently {self.vocab_size})."
             )
 
-
-        pe_to_add = self.pe[:, :S, :] # Shape: (1, S, hidden_size)
+        # Get token embeddings
         embeddings = self.token_embedding(token_ids) # Shape: (B, S, hidden_size)
-        
-        # Scale embeddings by sqrt(hidden_size) as done in some Transformer models
+
+        # Scale embeddings by sqrt(hidden_size) 
         embeddings = embeddings * math.sqrt(self.hidden_size)
+
+        # sinusoidal positional encoding
+        pe_to_add = self.pe[:, :S, :] # Shape: (1, S, hidden_size)
         embeddings = embeddings + pe_to_add 
+        embeddings = self.layer_norm(embeddings)
 
         return self.dropout(embeddings)
-    
+
