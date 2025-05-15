@@ -1,5 +1,7 @@
-# tokenization
-# 10(bos) 13(train)  11([ start) 0 0 ...  12(] end) 11 0 0 1 01 .... 12  14(test) 16(pred-ex)11 [ 11[..]12 12 11[.. 12]..12] .. 16(pred-ex) 17(eos)
+# openarc/model/tokenizer.py
+
+# Copyright (c) Sangram.
+# Licensed under the MIT license.
 
 import torch
 from openarc.config.config import Config
@@ -9,7 +11,6 @@ from openarc.config.config import Config
 
 import json
 from openarc.model import OpenTokenizer
-
 config = Config()
 
 task_json_data = '{"train":[{"input":[[0,0,4,0,0,0,0,0,4,4,4,4,4,4,4,4,4,4,0,0,0,0,4,0,0,0,0,0,0,0,0,0]],"output":[[0,0,0,0,0,0,0,0,4,4,4,4,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0]]},{"input":[[0,0,0,2,0,0,2,0,0,2,0,0,2,0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0]],"output":[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,0,0,0]]},{"input":[[4,4,4,4,4,4,4,4,4,4,4,4,4,4,0,0,0,4,0,0,0,0,4,0,0,0,0,0,0,0,0,0]],"output":[[4,4,4,4,4,4,4,4,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]]}],"test":[{"input":[[3,3,3,3,3,3,3,3,3,3,3,3,0,0,3,0,0,3,0,0,0,3,0,0,0,0,0,0,0,0,0,0]]}]}'
@@ -20,7 +21,6 @@ task_json_data = json.loads(task_json_data)
 tokenizer = OpenTokenizer.from_pretrained(config_instance=config)
 prompt = tokenizer.tokenize_task(task_json_data=task_json_data, true_label_data=solution_, task_id="1d_denoising_1c_0", max_seq_len=8192)
 print(prompt)
-
 """
 
 class OpenTokenizer:
@@ -248,13 +248,10 @@ class OpenTokenizer:
              predicted_token_ids = [predicted_token_ids] if isinstance(predicted_token_ids, (int, float)) else []
 
         if not predicted_token_ids:
-            # Use expected_output_shape to return a structured empty grid if provided
             if expected_output_shape and isinstance(expected_output_shape, (list, tuple)) and len(expected_output_shape) == 2:
                 rows, cols = expected_output_shape
                 if rows >= 0 and cols >= 0:
-                    # The old detokenize_grid produces flat padding, adjust if structured padding needed
-                    # For now, this specific path with expected_output_shape might give flat padding
-                    return {task_id_str: self.detokenize_grid([], rows, cols)} # Fallback to old style for this case
+                    return {task_id_str: self.detokenize_grid([], rows, cols)} 
             return {task_id_str: [[]]} # Default empty grid
 
         processed_tokens = list(predicted_token_ids)
@@ -267,21 +264,14 @@ class OpenTokenizer:
         grid_content_tokens_with_rows = []
         if len(processed_tokens) >= 2 and \
            processed_tokens[0] == C_config.output_grid_token:
-            grid_content_tokens_with_rows = processed_tokens[1:] # Remove leading 19
+            grid_content_tokens_with_rows = processed_tokens[1:] 
         else:
-            grid_content_tokens_with_rows = processed_tokens # Assume it's already starting with 11 or is just content
+            grid_content_tokens_with_rows = processed_tokens 
 
         # Now, parse this potentially nested structure
         final_grid_list_of_lists = self._detokenize_structured_grid_from_tokens(grid_content_tokens_with_rows, C_config)
-
-        # The `expected_output_shape` logic might need refinement if the model
-        # perfectly produces the nested structure. The `_detokenize_structured_grid_from_tokens`
-        # tries to reconstruct rows. If `expected_output_shape` is strict,
-        # we might need to re-flatten and then reshape, or adjust row parsing.
-        # For now, we trust `_detokenize_structured_grid_from_tokens`.
-        # If it returns [[]] and expected_output_shape is e.g. (2,2), we might want [ [], [] ] or padded.
-
         if not final_grid_list_of_lists or (len(final_grid_list_of_lists) == 1 and not final_grid_list_of_lists[0]):
+            
             # If detokenization resulted in empty or [[]]
             if expected_output_shape and isinstance(expected_output_shape, (list, tuple)) and len(expected_output_shape) == 2:
                 rows, cols = expected_output_shape
@@ -296,7 +286,7 @@ class OpenTokenizer:
 
         return {task_id_str: final_grid_list_of_lists}
 
-    def detokenize_grid(self, token_sequence, rows, cols): # Kept for potential fallback or other uses
+    def detokenize_grid(self, token_sequence, rows, cols): 
         if torch.is_tensor(token_sequence):
             squeezed_tokens = token_sequence.squeeze()
             if squeezed_tokens.ndim == 0:
