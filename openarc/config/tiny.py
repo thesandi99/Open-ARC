@@ -8,7 +8,6 @@ import torch.nn.functional as F
 
 # Model: OpenArc-Tiny
 # Tokoenizer: "OpenARC-FlatGrid"
-# Trainable parameters: 182041248 # 182M
 # Total number of modules/layers: 586
 # Number of Linear layers: 247
 # 80-epoch loss-0.0004 .pth 
@@ -45,7 +44,7 @@ class Config:
         self.output_grid = self.output_grid_token
 
         # Model architecture
-        self.hidden_size: int = 512
+        self.hidden_size: int = 256
         self.max_position_embeddings: int = 8192  # typically power of 2
 
         # Decoder layers
